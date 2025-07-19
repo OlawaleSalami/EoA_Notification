@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: arcgis-webhook
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn app:app
