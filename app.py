@@ -6,6 +6,9 @@ import os  # ✅ Required for reading environment variables
 
 app = Flask(__name__)
 CORS(app) 
+@app.route('/', methods=['GET'])
+def home():
+    return "EOA Notification Webhook Running", 200
 @app.route('/arcgis-webhook', methods=['POST'])
 def arcgis_webhook():
     data = request.get_json()
