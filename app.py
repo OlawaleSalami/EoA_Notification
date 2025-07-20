@@ -24,7 +24,7 @@ def send_email(to_address, name,service):
     sender_email = "walesalami012@gmail.com"
     sender_password = os.environ.get("EMAIL_PASSWORD")  # ✅ Secure from environment
 
-     body = (
+    body = (
         f"Dear {name},\n\n"
         f"Thank you for requesting our service.\n"
         f"The **{service}** has been completed.\n\n"
