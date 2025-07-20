@@ -13,18 +13,25 @@ def arcgis_webhook():
     attributes = data.get("feature", {}).get("attributes", {})
     email = attributes.get("E-mail", "")  # ✅ Use exact field name from form
     name = attributes.get("Name", "Valued client")  # ✅ Corrected field name
-
+    service = attributes.get("Services Performed", "Not Provided")  # ✅ The type of service
+    
     if email:
         send_email(email, name)
 
     return jsonify({"message": "Webhook received"}), 200
 
-def send_email(to_address, name):
+def send_email(to_address, name,service):
     sender_email = "walesalami012@gmail.com"
     sender_password = os.environ.get("EMAIL_PASSWORD")  # ✅ Secure from environment
 
-    subject = "Thank You for Your Submission"
-    body = f"Dear {name},\n\nThank you for completing the survey. We have received your response."
+     body = (
+        f"Dear {name},\n\n"
+        f"Thank you for requesting our service.\n"
+        f"The **{service}** has been completed.\n\n"
+        f"If you have any questions, feel free to reply to this email.\n\n"
+        f"Best regards,\n"
+        f"EoA Support Team"
+    )
 
     msg = MIMEText(body)
     msg["Subject"] = subject
@@ -38,3 +45,6 @@ def send_email(to_address, name):
         print(f"✅ Email sent to {to_address}")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
+

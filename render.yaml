@@ -1,7 +1,10 @@
 services:
   - type: web
-    name: EoA-webhook
+    name: EoA_Notification
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: gunicorn app:app
     plan: free
+envVars:
+      - key: EMAIL_PASSWORD
+        sync: false
