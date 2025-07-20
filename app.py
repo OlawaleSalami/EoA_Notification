@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # ✅ Import CORS
 import smtplib
 from email.mime.text import MIMEText
 import os  # ✅ Required for reading environment variables
 
 app = Flask(__name__)
-
+CORS(app) 
 @app.route('/arcgis-webhook', methods=['POST'])
 def arcgis_webhook():
     data = request.get_json()
