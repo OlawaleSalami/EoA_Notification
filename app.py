@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"], methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
 # Environment variables with detailed checking
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "walesalami012@gmail.com")
@@ -47,8 +47,16 @@ def health_check():
         "gmail_configured": bool(GMAIL_APP_PASSWORD)
     }), 200
 
-@app.route("/arcgis-webhook", methods=["POST"])
+@app.route("/arcgis-webhook", methods=["POST", "OPTIONS"])
 def webhook():
+    # Handle preflight OPTIONS request
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OK"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        return response, 200
+        
     try:
         # Log the raw request
         logger.info("=== WEBHOOK REQUEST START ===")
