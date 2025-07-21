@@ -23,9 +23,9 @@ def arcgis_webhook():
         print("✅ Received webhook payload:", data)
 
         attributes = data.get("feature", {}).get("attributes", {})
-        email = attributes.get("E-mail", "").strip()
-        name = attributes.get("Name", "Valued Customer")
-        service = attributes.get("Services Performed", "Not Provided")
+        email = attributes.get("e-mail", "").strip()
+        name = attributes.get("name", "Valued Customer")
+        service = attributes.get("services_performed", "Not Provided")
 
         signature_url = data.get("feature", {}).get("attachments", [{}])[0].get("url")
 
