@@ -230,7 +230,5 @@ def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 10000))
-    debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
-    logger.info(f"Starting app on port {port}, debug={debug}")
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    port = int(os.environ.get("PORT", 10000))  # Render uses dynamic ports
+    app.run(host="0.0.0.0", port=port)
