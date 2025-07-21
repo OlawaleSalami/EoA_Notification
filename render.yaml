@@ -5,6 +5,12 @@ services:
     buildCommand: "pip install -r requirements.txt"
     startCommand: gunicorn app:app
     plan: free
-envVars:
-      - key: EMAIL_PASSWORD
+    envVars:
+      - key: GMAIL_APP_PASSWORD  # Changed from EMAIL_PASSWORD
         sync: false
+      - key: GMAIL_ADDRESS
+        value: "walesalami012@gmail.com"
+      - key: PORT
+        value: "10000" 
+      - key: FLASK_DEBUG
+        value: "false"
