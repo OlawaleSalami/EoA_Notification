@@ -1,11 +1,16 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import smtplib
-from email.mime.text import MIMEText
 import os
+import requests
+from email.message import EmailMessage
+import smtplib
 
 app = Flask(__name__)
 CORS(app)
+
+# Your Gmail credentials (use environment variable or hardcode for testing)
+GMAIL_ADDRESS = "walesalami012@gmail.com"
+GMAIL_APP_PASSWORD = os.environ.get("EMAIL_PASSWORD")  # or paste your app password here
 
 @app.route('/', methods=['GET'])
 def home():
@@ -13,48 +18,74 @@ def home():
 
 @app.route('/arcgis-webhook', methods=['POST'])
 def arcgis_webhook():
-    data = request.get_json()
-    print("Received Survey123 data:", data)
-
-    attributes = data.get("feature", {}).get("attributes", {})
-    email = attributes.get("e-mail", "")
-    name = attributes.get("name", "Valued client")
-    service = attributes.get("services_performed", "Not Provided")
-
-    if email:
-        print("Sending email to{email} for service:{service}", recipient)
-        send_email(email, name, service)  # ✅ Now passing `service`
-
-    return jsonify({"message": "Webhook received"}), 200
-
-def send_email(to_address, name, service):
-    sender_email = "walesalami012@gmail.com"
-    sender_password = os.environ.get("EMAIL_PASSWORD")
-
-    subject = "Thank You for Your Submission"  # ✅ Define subject here
-
-    body = (
-        f"Dear {name},\n\n"
-        f"Thank you for requesting our service.\n"
-        f"The {service} has been completed.\n\n"
-        f"If you have any questions, feel free to reply to this email.\n\n"
-        f"Best regards,\n"
-        f"EoA Support Team"
-    )
-
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = sender_email
-    msg["To"] = to_address
-
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, to_address, msg.as_string())
-        print(f"✅ Email sent to {to_address}")
+        data = request.get_json()
+        print("✅ Received webhook payload:", data)
+
+        attributes = data.get("feature", {}).get("attributes", {})
+        email = attributes.get("E-mail", "").strip()
+        name = attributes.get("Name", "Valued Customer")
+        service = attributes.get("Services Performed", "Not Provided")
+
+        signature_url = data.get("feature", {}).get("attachments", [{}])[0].get("url")
+
+        attachment_path = None
+        if signature_url:
+            attachment_path = download_signature(signature_url)
+
+        if email:
+            send_email(email, name, service, attachment_path)
+
+        return jsonify({"message": "Email processed"}), 200
+
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"❌ Webhook error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def download_signature(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            path = "/tmp/signature.jpg"
+            with open(path, "wb") as f:
+                f.write(response.content)
+            print("📸 Signature downloaded.")
+            return path
+        else:
+            raise Exception("Failed to download image")
+    except Exception as e:
+        print(f"❌ Error downloading signature: {e}")
+        return None
+
+def send_email(to_address, name, service, attachment_path=None):
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = f"Thank You – {service} Completed"
+        msg["From"] = GMAIL_ADDRESS
+        msg["To"] = to_address
+
+        msg.set_content(
+            f"Dear {name},\n\n"
+            f"Thank you for requesting our service.\n"
+            f"The '{service}' has been completed.\n\n"
+            f"Regards,\nEoA Team"
+        )
+
+        # Attach image if available
+        if attachment_path:
+            with open(attachment_path, "rb") as f:
+                file_data = f.read()
+                msg.add_attachment(file_data, maintype="image", subtype="jpeg", filename="signature.jpg")
+            print("📎 Signature attached to email.")
+
+        with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+            smtp.starttls()
+            smtp.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            smtp.send_message(msg)
+            print(f"✅ Email sent to {to_address}")
+
+    except Exception as e:
+        print(f"❌ Email sending failed: {e}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
