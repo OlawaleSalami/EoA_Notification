@@ -9,7 +9,7 @@ from email.mime.application import MIMEApplication
 app = Flask(__name__)
 
 GMAIL_ADDRESS = "walesalami012@gmail.com"
-GMAIL_APP_PASSWORD = os.environ.get("llugkgilegohquon")  # set this in your Render environment
+GMAIL_APP_PASSWORD = "llugkgilegohquon"  # set this in your Render environment
 
 @app.route("/", methods=["GET"])
 def home():
