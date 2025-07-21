@@ -17,12 +17,12 @@ def arcgis_webhook():
     print("Received Survey123 data:", data)
 
     attributes = data.get("feature", {}).get("attributes", {})
-    email = attributes.get("E-mail", "")
-    name = attributes.get("Name", "Valued client")
-    service = attributes.get("Services Performed", "Not Provided")
+    email = attributes.get("e-mail", "")
+    name = attributes.get("name", "Valued client")
+    service = attributes.get("services_performed", "Not Provided")
 
     if email:
-        print("Sending email to", recipient)
+        print("Sending email to{email} for service:{service}", recipient)
         send_email(email, name, service)  # ✅ Now passing `service`
 
     return jsonify({"message": "Webhook received"}), 200
