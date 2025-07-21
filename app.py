@@ -102,29 +102,30 @@ def webhook():
             logger.warning(f"Invalid email address: {email_to}, using default")
             email_to = GMAIL_ADDRESS
         
-        # Check for attachments safely
-        attachments = feature.get("attachments", []) if isinstance(feature, dict) else []
+        # Check for attachments - SAFE VERSION
+        attachments = feature.get("attachments", {}) if isinstance(feature, dict) else {}
         signature_url = None
         
         logger.info(f"Attachments type: {type(attachments)}")
         logger.info(f"Attachments content: {attachments}")
         
-        # Handle different attachment structures
+        # Handle different attachment structures safely
         try:
-            if isinstance(attachments, list) and len(attachments) > 0:
-                # Standard list format
-                if isinstance(attachments[0], dict):
+            if isinstance(attachments, list):
+                logger.info(f"Attachments is a list with {len(attachments)} items")
+                if len(attachments) > 0 and isinstance(attachments[0], dict):
                     signature_url = attachments[0].get("url")
                     logger.info(f"Signature URL from list: {signature_url}")
             elif isinstance(attachments, dict):
-                # Dictionary format - try common keys
+                logger.info(f"Attachments is a dict with keys: {list(attachments.keys())}")
                 if "url" in attachments:
                     signature_url = attachments.get("url")
                     logger.info(f"Signature URL from dict: {signature_url}")
-                elif len(attachments) > 0:
+                elif attachments:
                     # Try first key-value pair
                     first_key = list(attachments.keys())[0]
                     first_attachment = attachments[first_key]
+                    logger.info(f"First attachment key: {first_key}, value type: {type(first_attachment)}")
                     if isinstance(first_attachment, dict) and "url" in first_attachment:
                         signature_url = first_attachment.get("url")
                         logger.info(f"Signature URL from nested dict: {signature_url}")
