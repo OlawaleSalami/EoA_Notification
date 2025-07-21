@@ -94,12 +94,16 @@ def webhook():
             logger.warning(f"Invalid email address: {email_to}, using default")
             email_to = GMAIL_ADDRESS
         
-        # Check for attachments
+        # Check for attachments safely
         attachments = feature.get("attachments", []) if isinstance(feature, dict) else []
         signature_url = None
-        if attachments and len(attachments) > 0:
-            signature_url = attachments[0].get("url") if isinstance(attachments[0], dict) else None
+        logger.info(f"Attachments found: {len(attachments)} items")
+        
+        if attachments and len(attachments) > 0 and isinstance(attachments[0], dict):
+            signature_url = attachments[0].get("url")
             logger.info(f"Signature URL: {signature_url}")
+        else:
+            logger.info("No signature attachments found")
         
         # Validate Gmail configuration
         if not GMAIL_APP_PASSWORD:
