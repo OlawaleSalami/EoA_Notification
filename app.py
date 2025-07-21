@@ -105,13 +105,36 @@ def webhook():
         # Check for attachments safely
         attachments = feature.get("attachments", []) if isinstance(feature, dict) else []
         signature_url = None
-        logger.info(f"Attachments found: {len(attachments)} items")
         
-        if attachments and len(attachments) > 0 and isinstance(attachments[0], dict):
-            signature_url = attachments[0].get("url")
-            logger.info(f"Signature URL: {signature_url}")
-        else:
-            logger.info("No signature attachments found")
+        logger.info(f"Attachments type: {type(attachments)}")
+        logger.info(f"Attachments content: {attachments}")
+        
+        # Handle different attachment structures
+        try:
+            if isinstance(attachments, list) and len(attachments) > 0:
+                # Standard list format
+                if isinstance(attachments[0], dict):
+                    signature_url = attachments[0].get("url")
+                    logger.info(f"Signature URL from list: {signature_url}")
+            elif isinstance(attachments, dict):
+                # Dictionary format - try common keys
+                if "url" in attachments:
+                    signature_url = attachments.get("url")
+                    logger.info(f"Signature URL from dict: {signature_url}")
+                elif len(attachments) > 0:
+                    # Try first key-value pair
+                    first_key = list(attachments.keys())[0]
+                    first_attachment = attachments[first_key]
+                    if isinstance(first_attachment, dict) and "url" in first_attachment:
+                        signature_url = first_attachment.get("url")
+                        logger.info(f"Signature URL from nested dict: {signature_url}")
+            
+            if not signature_url:
+                logger.info("No signature URL found in attachments")
+                
+        except Exception as e:
+            logger.error(f"Error processing attachments: {e}")
+            logger.info("Continuing without signature attachment")
         
         # Validate Gmail configuration
         if not GMAIL_APP_PASSWORD:
