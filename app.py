@@ -10,7 +10,7 @@ CORS(app)
 
 # Your Gmail credentials (use environment variable or hardcode for testing)
 GMAIL_ADDRESS = "walesalami012@gmail.com"
-GMAIL_APP_PASSWORD = os.environ.get("EMAIL_PASSWORD")  # or paste your app password here
+GMAIL_APP_PASSWORD = os.environ.get("llugkgilegohquon")  # or paste your app password here
 
 @app.route('/', methods=['GET'])
 def home():
