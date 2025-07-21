@@ -7,28 +7,33 @@ from email.mime.image import MIMEImage
 import requests
 import os
 import logging
+import traceback
 from email.utils import parseaddr
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure detailed logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-# Environment variables for security
+# Environment variables with detailed checking
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "walesalami012@gmail.com")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
-# Validate required environment variables
-if not GMAIL_APP_PASSWORD:
-    logger.error("GMAIL_APP_PASSWORD environment variable not set")
-    raise ValueError("Gmail app password must be set as environment variable")
+logger.info(f"Gmail address configured: {GMAIL_ADDRESS}")
+logger.info(f"Gmail password configured: {'Yes' if GMAIL_APP_PASSWORD else 'No'}")
 
 def is_valid_email(email):
     """Basic email validation"""
-    parsed = parseaddr(email)
-    return "@" in parsed[1] and "." in parsed[1].split("@")[1]
+    try:
+        parsed = parseaddr(email)
+        return "@" in parsed[1] and "." in parsed[1].split("@")[1]
+    except:
+        return False
 
 @app.route("/", methods=["GET"])
 def home():
@@ -36,76 +41,99 @@ def home():
 
 @app.route("/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy", "service": "EOA Webhook"}), 200
+    return jsonify({
+        "status": "healthy", 
+        "service": "EOA Webhook",
+        "gmail_configured": bool(GMAIL_APP_PASSWORD)
+    }), 200
 
 @app.route("/arcgis-webhook", methods=["POST"])
 def webhook():
     try:
+        # Log the raw request
+        logger.info("=== WEBHOOK REQUEST START ===")
+        logger.info(f"Content-Type: {request.content_type}")
+        logger.info(f"Content-Length: {request.content_length}")
+        
+        # Get raw data first
+        raw_data = request.get_data(as_text=True)
+        logger.info(f"Raw payload: {raw_data[:500]}...")  # First 500 chars
+        
+        # Try to parse JSON
         payload = request.get_json()
-        
         if not payload:
-            return jsonify({"error": "No JSON payload received"}), 400
+            logger.error("No JSON payload received or invalid JSON")
+            return jsonify({"error": "Invalid or missing JSON payload"}), 400
             
-        logger.info("Received webhook payload")
+        logger.info(f"Parsed payload keys: {list(payload.keys())}")
+        logger.info(f"Full payload: {payload}")
         
-        # Extract details with better error handling
-        feature = payload.get("feature", {})
-        attributes = feature.get("attributes", {})
+        # Check if we have the expected structure
+        if "feature" not in payload:
+            logger.warning("No 'feature' key in payload")
+            feature = {}
+        else:
+            feature = payload.get("feature", {})
+            logger.info(f"Feature keys: {list(feature.keys())}")
         
+        # Extract attributes safely
+        attributes = feature.get("attributes", {}) if isinstance(feature, dict) else {}
+        logger.info(f"Attributes: {attributes}")
+        
+        # Extract each field with detailed logging
         name = attributes.get("name", "Valued Customer")
         email_to = attributes.get("e_mail", GMAIL_ADDRESS)
         address = attributes.get("client_address", "N/A")
         service_type = attributes.get("service_type", "N/A")
         amount = attributes.get("amount", "N/A")
         
-        # Validate email address
+        logger.info(f"Extracted data - Name: {name}, Email: {email_to}, Service: {service_type}")
+        
+        # Validate email
         if not is_valid_email(email_to):
             logger.warning(f"Invalid email address: {email_to}, using default")
             email_to = GMAIL_ADDRESS
         
-        # Extract signature image URL
-        attachments = feature.get("attachments", [])
-        signature_url = attachments[0].get("url") if attachments else None
+        # Check for attachments
+        attachments = feature.get("attachments", []) if isinstance(feature, dict) else []
+        signature_url = None
+        if attachments and len(attachments) > 0:
+            signature_url = attachments[0].get("url") if isinstance(attachments[0], dict) else None
+            logger.info(f"Signature URL: {signature_url}")
+        
+        # Validate Gmail configuration
+        if not GMAIL_APP_PASSWORD:
+            logger.error("Gmail app password not configured")
+            return jsonify({"error": "Email service not configured"}), 500
         
         # Send email
+        logger.info("Attempting to send email...")
         success = send_email(email_to, name, address, service_type, amount, signature_url)
         
         if success:
+            logger.info("Email sent successfully")
             return jsonify({"message": "Email processed successfully"}), 200
         else:
+            logger.error("Failed to send email")
             return jsonify({"error": "Failed to send email"}), 500
             
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        logger.error(f"Webhook error: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 def send_email(to_address, name, address, service, amount, signature_url=None):
     """Send email with improved error handling and logging"""
     try:
+        logger.info(f"Preparing email to: {to_address}")
+        
         msg = MIMEMultipart()
         msg["Subject"] = "EOA Service Confirmation"
         msg["From"] = GMAIL_ADDRESS
         msg["To"] = to_address
         
-        # Create HTML body for better formatting
-        html_body = f"""
-        <html>
-        <body>
-            <h2>EOA Service Confirmation</h2>
-            <p>Dear {name},</p>
-            <p>Thank you for engaging our services.</p>
-            <ul>
-                <li><strong>Service Type:</strong> {service}</li>
-                <li><strong>Address:</strong> {address}</li>
-                <li><strong>Amount:</strong> {amount}</li>
-            </ul>
-            <p>Best regards,<br>
-            EOA Support Team</p>
-        </body>
-        </html>
-        """
-        
-        # Plain text fallback
+        # Create email body
         text_body = (
             f"Dear {name},\n\n"
             f"Thank you for engaging our services.\n"
@@ -117,39 +145,43 @@ def send_email(to_address, name, address, service, amount, signature_url=None):
         )
         
         msg.attach(MIMEText(text_body, "plain"))
-        msg.attach(MIMEText(html_body, "html"))
+        logger.info("Email body attached")
         
-        # Attach signature image if available
+        # Handle signature attachment
         if signature_url:
             try:
-                logger.info("Downloading signature image...")
+                logger.info(f"Downloading signature from: {signature_url}")
                 response = requests.get(signature_url, timeout=10)
                 if response.status_code == 200:
                     image = MIMEImage(response.content)
                     image.add_header("Content-Disposition", "attachment", filename="signature.jpg")
                     msg.attach(image)
-                    logger.info("Signature attached to email")
+                    logger.info("Signature attached successfully")
                 else:
                     logger.warning(f"Failed to download signature. Status: {response.status_code}")
-            except requests.RequestException as e:
-                logger.error(f"Failed to download signature: {e}")
+            except Exception as e:
+                logger.error(f"Signature attachment error: {e}")
         
         # Send email
+        logger.info("Connecting to Gmail SMTP...")
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            logger.info("Logging in to Gmail...")
             smtp.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            logger.info("Sending message...")
             smtp.send_message(msg)
         
         logger.info(f"Email sent successfully to {to_address}")
         return True
         
-    except smtplib.SMTPAuthenticationError:
-        logger.error("SMTP authentication failed. Check credentials.")
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"SMTP authentication failed: {e}")
         return False
     except smtplib.SMTPException as e:
         logger.error(f"SMTP error: {e}")
         return False
     except Exception as e:
-        logger.error(f"Failed to send email: {e}")
+        logger.error(f"Email sending error: {e}")
+        logger.error(f"Email error traceback: {traceback.format_exc()}")
         return False
 
 @app.errorhandler(404)
@@ -158,9 +190,11 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    logger.error(f"500 error handler triggered: {error}")
     return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
     debug = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+    logger.info(f"Starting app on port {port}, debug={debug}")
     app.run(host="0.0.0.0", port=port, debug=debug)
