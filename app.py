@@ -1,5 +1,3 @@
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import smtplib
@@ -36,13 +34,8 @@ def is_valid_email(email):
         return "@" in parsed[1] and "." in parsed[1].split("@")[1]
     except:
         return False
-# Google Sheets setup
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-client = gspread.authorize(creds)
-sheet = client.open("EOA Responses").sheet1  # replace with your actual sheet name
-@app.route("/", methods=["GET"])
 
+@app.route("/", methods=["GET"])
 def home():
     return "EOA Notification Webhook Running", 200
 
@@ -103,7 +96,6 @@ def webhook():
         amount = attributes.get("amount", "N/A")
         
         logger.info(f"Extracted data - Name: {name}, Email: {email_to}, Service: {service_type}")
-	    sheet.append_row([name, email_to, address, service_type, amount])
         
         # Validate email
         if not is_valid_email(email_to):
