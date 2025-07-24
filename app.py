@@ -44,6 +44,12 @@ if not creds_b64:
 
 try:
     creds_dict = json.loads(base64.b64decode(creds_b64).decode("utf-8"))
+    with open("credentials.txt", "r") as f:
+        encoded = f.read()
+
+# Decode and parse the JSON
+    decoded = base64.b64decode(encoded)
+    creds_dict = json.loads(decoded)
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
