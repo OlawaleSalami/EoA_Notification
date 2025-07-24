@@ -1,3 +1,20 @@
+import os
+import base64
+import json
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Decode credentials from base64 env var
+creds_b64 = os.environ.get("GOOGLE_CREDS_B64")
+if not creds_b64:
+    raise Exception("Missing GOOGLE_CREDS_B64 env variable")
+
+creds_dict = json.loads(base64.b64decode(creds_b64).decode("utf-8"))
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+client = gspread.authorize(creds)
+sheet = client.open("EOA Responses").sheet1
+
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, request, jsonify
