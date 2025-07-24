@@ -1,3 +1,5 @@
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import smtplib
@@ -20,6 +22,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, origins=["*"], methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
+# --- Google Sheets Setup ---
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+client = gspread.authorize(creds)
+sheet = client.open("EOA Responses").sheet1
+# ---------------------------
 # Environment variables with detailed checking
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "walesalami012@gmail.com")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
@@ -145,6 +153,11 @@ def webhook():
         # Send email
         logger.info("Attempting to send email...")
         success = send_email(email_to, name, address, service_type, amount, signature_url)
+try:
+    sheet.append_row([name, email_to, address, service_type, amount])
+    logger.info("Data written to Google Sheet")
+except Exception as e:
+    logger.error(f"Failed to write to Google Sheet: {e}")
         
         if success:
             logger.info("Email sent successfully")
